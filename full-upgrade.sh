@@ -1,14 +1,28 @@
 #!/bin/bash
+
 set -e
 
+#=========================
+# 顏色設定
 RED='\033[0;31m'
 GREEN='\033[0;32m'
 YELLOW='\033[1;33m'
 BLUE='\033[0;34m'
 NC='\033[0m' # No Color
-#later update log files
-#=========================
 
+#=========================
+# 日誌檔案設定
+log_file="./log_files/full-upgrade-$(date +'%Y%m%d_%H%M%S').log"
+if [ ! -d "./log_files" ]; then
+    mkdir -p "./log_files"
+    echo -e "${YELLOW} 已建立日誌目錄: ./log_files ${NC}"
+fi
+echo -e "${YELLOW} 日誌檔案: $log_file ${NC}"
+echo -e"" 
+exec > >(tee -a "$log_file") 2>&1
+
+#=========================
+# 函數定義
 ntp_sync() {
     echo -e "${BLUE} 同步 NTP 時間${NC}"
     sudo timedatectl set-ntp true
@@ -120,6 +134,8 @@ show_help() {
     echo "  -h, --help          顯示此幫助訊息"
 }
 
+#=========================
+# 主程式邏輯
 main(){
     case "${1:-help}" in
         --ntp-sync)

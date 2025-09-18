@@ -1,3 +1,5 @@
 # looks some dolphine thing
 .directory
 
+# Ignore log files directory
+log_files/

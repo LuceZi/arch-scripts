@@ -57,7 +57,7 @@ calculate_trash_stats() {
 
 # 顯示垃圾桶狀態
 show_trash_status() {
-    echo -e "${BLUE}🗑️  垃圾桶狀態檢查${NC}"
+    echo -e "${BLUE} 垃圾桶狀態檢查${NC}"
     echo ""
 
     local total_files=0
@@ -72,9 +72,9 @@ show_trash_status() {
             local size=$(echo $stats | cut -d' ' -f2)
 
             if [ $files -gt 0 ]; then
-                echo -e "📁 $trash_dir"
-                echo -e "   檔案數量: ${YELLOW}$files${NC}"
-                echo -e "   佔用空間: ${YELLOW}$(human_readable_size $size)${NC}"
+                echo -e "$trash_dir"
+                echo -e "檔案數量: ${YELLOW}$files${NC}"
+                echo -e "佔用空間: ${YELLOW}$(human_readable_size $size)${NC}"
                 echo ""
 
                 total_files=$((total_files + files))
@@ -84,18 +84,18 @@ show_trash_status() {
     done
 
     if [ "$found_trash" = false ]; then
-        echo -e "${RED}❌ 找不到任何垃圾桶目錄${NC}"
+        echo -e "${RED} 找不到任何垃圾桶目錄${NC}"
         return 1
     fi
 
     if [ $total_files -eq 0 ]; then
-        echo -e "${GREEN}✨ 垃圾桶是空的，無需清理${NC}"
+        echo -e "${GREEN} 垃圾桶是空的，無需清理${NC}"
         return 0
     fi
 
-    echo -e "${BLUE}📊 總計${NC}"
-    echo -e "   總檔案數: ${YELLOW}$total_files${NC}"
-    echo -e "   總大小: ${YELLOW}$(human_readable_size $total_size)${NC}"
+    echo -e "${BLUE} 總計${NC}"
+    echo -e "總檔案數: ${YELLOW}$total_files${NC}"
+    echo -e "總大小: ${YELLOW}$(human_readable_size $total_size)${NC}"
     echo ""
 
     return 0
@@ -123,9 +123,9 @@ clean_single_trash() {
     # 清理檔案
     if [ -d "$files_dir" ] && [ -n "$(ls -A "$files_dir" 2>/dev/null)" ]; then
         if rm -rf "$files_dir"/* 2>/dev/null; then
-            echo -e "   ✅ 已清理檔案目錄"
+            echo -e "已清理檔案目錄"
         else
-            echo -e "   ${RED}❌ 清理檔案目錄失敗${NC}"
+            echo -e "${RED} 清理檔案目錄失敗${NC}"
             return 1
         fi
     fi
@@ -133,9 +133,9 @@ clean_single_trash() {
     # 清理資訊檔案
     if [ -d "$info_dir" ] && [ -n "$(ls -A "$info_dir" 2>/dev/null)" ]; then
         if rm -rf "$info_dir"/* 2>/dev/null; then
-            echo -e "   ✅ 已清理資訊目錄"
+            echo -e "已清理資訊目錄"
         else
-            echo -e "   ${RED}❌ 清理資訊目錄失敗${NC}"
+            echo -e "${RED} 清理資訊目錄失敗${NC}"
             return 1
         fi
     fi
@@ -173,19 +173,19 @@ clean_trash() {
 
     # 確認清理
     if [ "$force_mode" = false ]; then
-        echo -e "${YELLOW}⚠️  警告：此操作將永久刪除垃圾桶中的所有檔案！${NC}"
+        echo -e "${YELLOW}  警告：此操作將永久刪除垃圾桶中的所有檔案！${NC}"
         echo ""
         read -p "確定要繼續嗎？(y/N): " -n 1 -r
         echo ""
 
         if [[ ! $REPLY =~ ^[Yy]$ ]]; then
-            echo -e "${BLUE}🚫 操作已取消${NC}"
+            echo -e "${BLUE} 操作已取消${NC}"
             exit 0
         fi
     fi
 
     echo ""
-    echo -e "${BLUE}🧹 開始清理垃圾桶...${NC}"
+    echo -e "${BLUE} 開始清理垃圾桶...${NC}"
     echo ""
 
     # 執行清理
@@ -210,30 +210,30 @@ clean_trash() {
 
     # 結果報告
     if [ $success_count -eq $total_count ]; then
-        echo -e "${GREEN}🎉 垃圾桶清理完成！${NC}"
-        echo -e "   已清理 $total_count 個垃圾桶目錄"
+        echo -e "${GREEN} 垃圾桶清理完成！${NC}"
+        echo -e "已清理 $total_count 個垃圾桶目錄"
     else
-        echo -e "${YELLOW}⚠️  清理部分完成${NC}"
-        echo -e "   成功：$success_count/$total_count"
+        echo -e "${YELLOW} 清理部分完成${NC}"
+        echo -e "成功：$success_count/$total_count"
     fi
 }
 
 # 顯示使用說明
 show_help() {
-    echo -e "${BLUE}🗑️  安全垃圾桶清理工具${NC}"
+    echo -e "${BLUE} 安全垃圾桶清理工具${NC}"
     echo ""
     echo -e "${YELLOW}用法：${NC}"
-    echo "  $0                - 查看垃圾桶狀態並確認清理"
-    echo "  $0 clean          - 清理垃圾桶（需要確認）"
-    echo "  $0 clean --force  - 強制清理垃圾桶（無需確認）"
-    echo "  $0 status         - 僅查看垃圾桶狀態"
-    echo "  $0 --help         - 顯示此說明"
+    echo "$0                - 查看垃圾桶狀態並確認清理"
+    echo "$0 clean          - 清理垃圾桶（需要確認）"
+    echo "$0 clean --force  - 強制清理垃圾桶（無需確認）"
+    echo "$0 status         - 僅查看垃圾桶狀態"
+    echo "$0 --help         - 顯示此說明"
     echo ""
-    echo -e "${BLUE}💡 說明：${NC}"
-    echo "  • 支援多種垃圾桶標準 (FreeDesktop, macOS 風格等)"
-    echo "  • 清理前會顯示檔案數量和大小"
-    echo "  • 預設需要用戶確認才執行清理"
-    echo "  • 使用 --force 參數可跳過確認（適合腳本調用）"
+    echo -e "${BLUE} 說明：${NC}"
+    echo "• 支援多種垃圾桶標準 (FreeDesktop, macOS 風格等)"
+    echo "• 清理前會顯示檔案數量和大小"
+    echo "• 預設需要用戶確認才執行清理"
+    echo "• 使用 --force 參數可跳過確認（適合腳本調用）"
     echo ""
 }
 
@@ -252,7 +252,7 @@ main() {
         *)
             # 預設行為：顯示狀態並詢問是否清理
             if show_trash_status; then
-                echo -e "${YELLOW}💡 執行清理請使用：$0 clean${NC}"
+                echo -e "${YELLOW} 執行清理請使用：$0 clean${NC}"
             fi
             ;;
     esac
