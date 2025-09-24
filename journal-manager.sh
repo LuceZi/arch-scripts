@@ -1,8 +1,5 @@
 #!/bin/bash
 
-# journalctl 管理腳本
-# 用法: ./journal_manager.sh [選項]
-
 # 顏色定義
 RED='\033[0;31m'
 GREEN='\033[0;32m'

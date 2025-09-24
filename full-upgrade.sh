@@ -12,17 +12,21 @@ NC='\033[0m' # No Color
 
 #=========================
 # 日誌檔案設定
-log_file="./log_files/full-upgrade-$(date +'%Y%m%d_%H%M%S').log"
-if [ ! -d "./log_files" ]; then
-    mkdir -p "./log_files"
-    echo -e "${YELLOW} 已建立日誌目錄: ./log_files ${NC}"
-fi
-echo -e "${YELLOW} 日誌檔案: $log_file ${NC}"
-echo -e"" 
-exec > >(tee -a "$log_file") 2>&1
+active_log(){
+    log_file="./log_files/full-upgrade-$(date +'%Y%m%d_%H%M%S').log"
+    if [ ! -d "./log_files" ]; then
+        mkdir -p "./log_files"
+        echo -e "${YELLOW} 已建立日誌目錄: ./log_files ${NC}"
+    fi
+    echo -e "${YELLOW} 日誌檔案: $log_file ${NC}"
+    echo -e"" 
+    exec > >(tee -a "$log_file") 2>&1
+}
 
 #=========================
 # 函數定義
+
+ # 函數：同步 NTP 時間
 ntp_sync() {
     echo -e "${BLUE} 同步 NTP 時間${NC}"
     sudo timedatectl set-ntp true
@@ -35,33 +39,14 @@ ntp_sync() {
     fi
 }
 
-update_pacman() {
+ # 函數：更新官方套件庫
+pacman_update() {
     echo -e "${BLUE} 更新官方套件庫 (pacman -Syu)${NC}"
     sudo pacman -Syu --noconfirm
     echo -e "${GREEN} 官方套件庫更新完成\n${NC}"
 }
 
-update_aur(){
-    if command -v yay &>/dev/null; then
-        echo -e "${BLUE} 更新 AUR 套件（如果有 yay）${NC}"
-        yay -Syu --noconfirm --removemake --answerdiff N --answerclean N
-        echo -e "${GREEN} AUR 套件更新完成\n${NC}"
-    else
-        echo "${RED} 未安裝 yay，跳過 AUR 更新\n${NC}"
-    fi
-}
-
-update_flatpak() {
-    if command -v flatpak &>/dev/null; then
-        echo -e "${BLUE} 更新 Flatpak 應用程式${NC}"
-        flatpak update -y
-        echo -e "${GREEN} Flatpak 應用程式更新完成\n${NC}"
-    else
-        echo "${RED} Flatpak 未安裝，跳過此步驟\n${NC}"
-    fi
-}
-
-clean_orphans() {
+pacman_clean_orphans() {
     echo -e "${BLUE} 清理孤立的套件 (pacman -Qdtq)${NC}"
     if pacman -Qdtq &>/dev/null; then
         sudo pacman -Rns --noconfirm $(pacman -Qdtq)
@@ -71,6 +56,55 @@ clean_orphans() {
     fi
 }
 
+pacman_clean_cache() {
+    echo -e "${BLUE} 清理 Pacman 緩存 (paccache -r)${NC}"
+    sudo paccache -r -k1  # 僅保留最新 kn 個版本
+    echo -e "${GREEN} Pacman 緩存清理完成\n${NC}"
+}
+
+# 函數：更新 AUR 套件
+aur_update(){
+    if command -v yay &>/dev/null; then
+        echo -e "${BLUE} 更新 AUR 套件（如果有 yay）${NC}"
+        yay -Syu --noconfirm --removemake --answerdiff N --answerclean N
+        echo -e "${GREEN} AUR 套件更新完成\n${NC}"
+    else
+        echo "${RED} 未安裝 yay，跳過 AUR 更新\n${NC}"
+    fi
+}
+
+aur_clean(){
+    if command -v yay &>/dev/null; then
+        echo -e "${BLUE} 清理 AUR 套件緩存${NC}"
+        yay -Sc --noconfirm
+        echo -e "${GREEN} AUR 套件緩存清理完成\n${NC}"
+    else
+        echo "${RED} 未安裝 yay，跳過 AUR 緩存清理\n${NC}"
+    fi
+}
+
+# 函數：更新 Flatpak 應用程式
+flatpak_update() {
+    if command -v flatpak &>/dev/null; then
+        echo -e "${BLUE} 更新 Flatpak 應用程式${NC}"
+        flatpak update -y
+        echo -e "${GREEN} Flatpak 應用程式更新完成\n${NC}"
+    else
+        echo "${RED} Flatpak 未安裝，跳過此步驟\n${NC}"
+    fi
+}
+
+flatpak_clean() {
+    if command -v flatpak &>/dev/null; then
+        echo -e "${BLUE} 清理 Flatpak 應用程式緩存${NC}"
+        flatpak uninstall --unused -y
+        echo -e "${GREEN} Flatpak 應用程式緩存清理完成\n${NC}"
+    else
+        echo "${RED} Flatpak 未安裝，跳過此步驟\n${NC}"
+    fi
+}
+
+ # 函數：檢查並修復系統檔案
 check_system_files() {
     echo -e "${BLUE} 檢查並修復系統檔案 (pacman -Qkk)${NC}"
     echo -e "${YELLOW} 檢查系統檔案完整性...${NC}"
@@ -83,11 +117,7 @@ check_system_files() {
     fi
 }
 
-clean_pacman_cache() {
-    echo -e "${BLUE} 清理 Pacman 緩存 (paccache -r)${NC}"
-    sudo paccache -r -k1  # 僅保留最新 kn 個版本
-    echo -e "${GREEN} Pacman 緩存清理完成\n${NC}"
-}
+#=========================
 
 rebuild_dkms() {
     echo -e "${BLUE} 重新編譯 DKMS 模組（如果有）${NC}"
@@ -96,7 +126,9 @@ rebuild_dkms() {
         if [ -n "$dkms_modules" ]; then
             for module in $dkms_modules; do
                 echo -e "${YELLOW} 重新編譯 $module...${NC}"
-                sudo dkms autoinstall
+                set +e  # 暫時禁用 set -e
+                sudo dkms autoinstall || echo -e "${RED} 模組 $module 重新編譯失敗，繼續執行其他操作...${NC}"
+                set -e  # 恢復 set -e
             done
             echo -e "${GREEN} DKMS 模組重新編譯完成\n${NC}"
         else
@@ -130,7 +162,7 @@ show_help() {
     echo "  --check-system      檢查並修復系統檔案"
     echo "  --clean-cache       清理 Pacman 緩存"
     echo "  --rebuild-dkms      重新編譯 DKMS 模組"
-    echo "  --all               執行所有更新和清理操作"
+    echo "  -a, --all           執行所有更新和清理操作"
     echo "  -h, --help          顯示此幫助訊息"
 }
 
@@ -142,34 +174,37 @@ main(){
             ntp_sync
             ;;
         --update-pacman)
-            update_pacman
+            pacman_update
             ;;
         --update-aur)
-            update_aur
+            aur_update
             ;;
         --update-flatpak)
-            update_flatpak
+            flatpak_update
             ;;
         --clean-orphans)
-            clean_orphans
+            pacman_clean_orphans
             ;;
         --check-system)
             check_system_files
             ;;
         --clean-cache)
-            clean_pacman_cache
+            pacman_clean_cache
+            aur_clean
+            flatpak_clean
             ;;
         --rebuild-dkms)
             rebuild_dkms
             ;;
-        --all)
+        --a|--all)
             ntp_sync
-            update_pacman
-            update_aur
-            update_flatpak
-            clean_orphans
-            #check_system_files
-            clean_pacman_cache
+            pacman_update
+            aur_update
+            flatpak_update
+            pacman_clean_orphans
+            pacman_clean_cache
+            aur_clean
+            flatpak_clean
             rebuild_dkms
             reboot_request
             ;;
