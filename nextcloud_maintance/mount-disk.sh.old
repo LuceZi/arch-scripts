@@ -1,0 +1,31 @@
+#!/bin/bash
+
+echo "📦 掛載 NextcloudPi 資料與備份磁碟中..."
+
+# 掛載 /srv/nextcloud_data（sda1）
+if lsblk | grep -q "sda1"; then
+  if ! mountpoint -q /srv/nextcloud_data; then
+    echo "🔗 掛載 /dev/sda1 → /srv/nextcloud_data"
+    sudo mkdir -p /srv/nextcloud_data
+    sudo mount /dev/sda1 /srv/nextcloud_data
+  else
+    echo "✅ /srv/nextcloud_data 已掛載"
+  fi
+else
+  echo "⚠ 找不到 /dev/sda1，略過資料磁碟掛載"
+fi
+
+# 掛載 /mnt/USBdrive/ncp-backups（sdb1）
+if lsblk | grep -q "sdb1"; then
+  if ! mountpoint -q /mnt/USBdrive/ncp-backups; then
+    echo "🔗 掛載 /dev/sdb1 → /mnt/USBdrive/ncp-backups"
+    sudo mkdir -p /mnt/USBdrive/ncp-backups
+    sudo mount /dev/sdb1 /mnt/USBdrive/ncp-backups
+  else
+    echo "✅ /mnt/USBdrive/ncp-backups 已掛載"
+  fi
+else
+  echo "⚠ 找不到 /dev/sdb1，略過備份磁碟掛載"
+fi
+
+echo "🎉 所有掛載程序完成"
