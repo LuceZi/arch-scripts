@@ -77,6 +77,8 @@ aur_clean(){
     if command -v yay &>/dev/null; then
         echo -e "${BLUE} 清理 AUR 套件緩存${NC}"
         yay -Sc --noconfirm
+        yay -Yc --noconfirm
+        yay -Qtdq | xargs -r yay -Rns --noconfirm
         echo -e "${GREEN} AUR 套件緩存清理完成\n${NC}"
     else
         echo "${RED} 未安裝 yay，跳過 AUR 緩存清理\n${NC}"
@@ -94,13 +96,25 @@ flatpak_update() {
     fi
 }
 
+# 函數：清理 Flatpak 緩存
 flatpak_clean() {
     if command -v flatpak &>/dev/null; then
         echo -e "${BLUE} 清理 Flatpak 應用程式緩存${NC}"
         flatpak uninstall --unused -y
+        
+        # 檢查並清理 ~/.var/app 下的快取
+        if [ -d ~/.var/app ]; then
+            find ~/.var/app -type d -name '.cache' -exec rm -rf {} + 2>/dev/null || true
+        fi
+        
+        # 檢查並清理 flatpak 快取目錄
+        if [ -d ~/.cache/flatpak ]; then
+            rm -rf ~/.cache/flatpak/* 2>/dev/null || true
+        fi
+        
         echo -e "${GREEN} Flatpak 應用程式緩存清理完成\n${NC}"
     else
-        echo "${RED} Flatpak 未安裝，跳過此步驟\n${NC}"
+        echo -e "${RED} Flatpak 未安裝，跳過此步驟\n${NC}"
     fi
 }
 
