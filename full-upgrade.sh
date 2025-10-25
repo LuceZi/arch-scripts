@@ -153,10 +153,31 @@ rebuild_dkms() {
     fi
 }
 
-reboot_request() {
+reboot_request_old() {
     echo -e "${YELLOW} 系統更新完成，建議重新啟動以應用所有變更。${NC}"
     read -p "是否立即重新啟動？(y/N): " -n 1 -r
+    #add timeout for 15 seconds
+
     echo
+    if [[ $REPLY =~ ^[Yy]$ ]]; then
+        echo -e "${BLUE} 系統正在重新啟動...${NC}"
+        sudo reboot
+    else
+        echo -e "${BLUE} 請記得稍後手動重新啟動系統以應用更新。${NC}"
+    fi
+}
+
+reboot_request() {
+    echo -e "${YELLOW} 系統更新完成，建議重新啟動以應用所有變更。${NC}"
+    # 使用 15 秒 timeout，超時視為不重啟
+    if read -t 15 -n 1 -r -p "是否立即重新啟動？(y/N, 等待 15s): " REPLY; then
+        echo
+    else
+        echo
+        echo -e "${YELLOW} 等待超時 (15s)，預設不重新啟動。${NC}"
+        REPLY="n"
+    fi
+
     if [[ $REPLY =~ ^[Yy]$ ]]; then
         echo -e "${BLUE} 系統正在重新啟動...${NC}"
         sudo reboot
