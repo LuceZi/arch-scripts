@@ -1,0 +1,77 @@
+#!/bin/bash
+
+LOG="/var/log/clevo-hwp-fix.log"
+
+log_status() {
+    echo "=== $(date) - $1 ===" >> "$LOG"
+    
+    # HWP 暫存器
+    for cpu in {0..7}; do
+        hwp=$(rdmsr -p $cpu 0x774 2>/dev/null || echo "failed")
+        echo "CPU$cpu HWP_REQUEST: $hwp" >> "$LOG"
+    done
+    
+    # Intel P-state 設定
+    echo "max_perf_pct: $(cat /sys/devices/system/cpu/intel_pstate/max_perf_pct)" >> "$LOG"
+    echo "min_perf_pct: $(cat /sys/devices/system/cpu/intel_pstate/min_perf_pct)" >> "$LOG"
+    
+    # 實際頻率（這個最重要！）
+    echo "Current frequencies (MHz):" >> "$LOG"
+    for cpu in {0..7}; do
+        freq=$(cat /sys/devices/system/cpu/cpu$cpu/cpufreq/scaling_cur_freq 2>/dev/null || echo "N/A")
+        echo "  CPU$cpu: $((freq / 1000))" >> "$LOG"
+    done
+    
+    # MSR P-state
+    echo "MSR IA32_PERF_CTL:" >> "$LOG"
+    for cpu in {0..7}; do
+        pctl=$(rdmsr -p $cpu 0x199 2>/dev/null || echo "failed")
+        echo "  CPU$cpu: $pctl" >> "$LOG"
+    done
+}
+
+case $1 in
+  pre)
+    log_status "Before suspend"
+    ;;
+  post)
+    # Resume 後先記錄原始狀態
+    log_status "After resume (before fix)"
+    
+    # 檢查是否卡在低頻
+    stuck_count=0
+    for cpu in {0..7}; do
+        freq=$(cat /sys/devices/system/cpu/cpu$cpu/cpufreq/scaling_cur_freq 2>/dev/null || echo "0")
+        if [ "$freq" -lt 500000 ]; then  # 低於 500MHz
+            stuck_count=$((stuck_count + 1))
+        fi
+    done
+    
+    echo "CPUs stuck at low freq: $stuck_count / 8" >> "$LOG"
+    
+    # 等 EC 穩定
+    sleep 1
+    
+    # 強制修復 HWP
+    for cpu in {0..7}; do
+        # 清除 Package Control bit, 設定合理的 Min (8 = 800MHz)
+        wrmsr -p $cpu 0x774 0x8032 2>/dev/null || true
+    done
+    
+    # 刷新 intel_pstate
+    echo 100 > /sys/devices/system/cpu/intel_pstate/max_perf_pct
+    echo 8 > /sys/devices/system/cpu/intel_pstate/min_perf_pct
+    
+    # 如果真的卡住，嘗試更激進的 reset
+    if [ "$stuck_count" -ge 4 ]; then
+        echo "Stuck detected, doing aggressive reset" >> "$LOG"
+        echo 1 > /sys/devices/system/cpu/intel_pstate/no_hwp 2>/dev/null || true
+        sleep 0.5
+        echo 0 > /sys/devices/system/cpu/intel_pstate/no_hwp 2>/dev/null || true
+    fi
+    
+    # 記錄修復後狀態
+    sleep 1
+    log_status "After fix"
+    ;;
+esac
