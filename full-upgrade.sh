@@ -232,7 +232,6 @@ main(){
             rebuild_dkms
             ;;
         --a|--all)
-            ntp_sync
             pacman_update
             aur_update
             flatpak_update
